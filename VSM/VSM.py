@@ -76,6 +76,9 @@ ff_lev = 'None'
 ff_edm = 'None'
 ff_tlt = 'None'
 ff_srn = 'None'
+ff_sfp = 'None' # seafloor pressure
+ff_rpb = 'None' # repeat bathymetry
+
 
 n_sources = 0
 mysources = []
@@ -261,14 +264,16 @@ def read_shapefile(shp_path):
 	df = pd.DataFrame(columns=fields, data=records)
 	return df
 
-def read_weights(s,g,l,e,t,r):
-    global w_sar,w_gps,w_lev,w_edm,w_tlt,w_srn
+def read_weights(s,g,l,e,t,r,f,p):
+    global w_sar,w_gps,w_lev,w_edm,w_tlt,w_srn, w_sfp, w_rpb
     w_sar = float(s)
     w_gps = float(g)
     w_lev = float(l)
     w_edm = float(e)
     w_tlt = float(t)
     w_srn = float(r)
+    w_sfp = float(f)
+    w_rpb = float(p)
     
     if(ff_sar[0] == 'None' or ff_sar[0] == ''): w_sar = 0.
     if(ff_gps == 'None'): w_gps = 0.
@@ -276,6 +281,8 @@ def read_weights(s,g,l,e,t,r):
     if(ff_edm == 'None'): w_edm = 0.
     if(ff_tlt == 'None'): w_tlt = 0.
     if(ff_srn == 'None'): w_srn = 0.
+    if(ff_sfp == 'None'): w_sfp = 0.
+    if(ff_rpb == 'None'): w_rpb = 0.
     
     if((ff_sar[0] != 'None' and ff_sar[0] != '') and w_sar == 0.): w_sar = 1.
     if(ff_gps != 'None' and w_gps == 0.): w_gps = 1.
@@ -283,14 +290,18 @@ def read_weights(s,g,l,e,t,r):
     if(ff_edm != 'None' and w_edm == 0.): w_edm = 1.
     if(ff_tlt != 'None' and w_tlt == 0.): w_tlt = 1.
     if(ff_srn != 'None' and w_srn == 0.): w_srn = 1.
+    if(ff_sfp != 'None' and w_sfp == 0.): w_sfp = 1.
+    if(ff_rpb != 'None' and w_rpb == 0.): w_rpb = 1.
     
-    w_tot = w_sar + w_gps + w_lev + w_edm + w_tlt + w_srn
+    w_tot = w_sar + w_gps + w_lev + w_edm + w_tlt + w_srn + w_sfg + w_rpb
     w_sar /= w_tot
     w_gps /= w_tot
     w_lev /= w_tot
     w_edm /= w_tot
     w_tlt /= w_tot
     w_srn /= w_tot
+    w_sfp /= w_tot
+    w_rpb /= w_tot
     
 def read_data():
     global datetime_start
@@ -444,7 +455,64 @@ def read_data():
         data_srn = d_srn[:,2]
         err_srn  = d_srn[:,3]
         print('Found ', len(X_srn), 'STRAIN data')
-        
+
+    if (ff_sfp != 'None'):
+        ext = ff_sfp[-3:]
+        if (ext == 'txt'):
+            try:
+                d_sfp = np.loadtxt(ff_sfp)
+            except:
+                d_sfp = np.loadtxt(ff_sfp, skiprows=1)
+        if (ext == 'csv'):
+            db_sfp = pd.read_csv(ff_sfp)
+            d_sfp = db_sfp.values
+        if (ext == 'shp'):
+            db_sfp = read_shapefile(ff_sfp)
+            d_sfp = db_sfp.values
+
+        global X_sfp, Y_sfp, data_sfp, err_sfp
+        X_sfp = d_sfp[:, 0]
+        Y_sfp = d_sfp[:, 1]
+        data_sfp = d_sfp[:, 2:3] # seafloor pressure is only z component
+        err_sfp = d_sfp[:, 3:4]
+        print('Found ', len(X_sfp), 'Seafloor Pressure Data Points')
+
+    if (ff_rpb[0] != 'None'):
+        global X_rpb, Y_rpb, data_rpb, err_rpb, n_rpb
+
+        n_rpb = []
+        X_rpb = []
+        Y_rpb = []
+        data_rpb = []
+        err_rpb = []
+        n_index = 0
+
+        for i in range(len(ff_rpb)):
+            ext = ff_rpb[i][-3:]
+            if (ext == 'txt'):
+                try:
+                    d_rpb = np.loadtxt(ff_rpb[i])
+                except:
+                    d_rpb = np.loadtxt(ff_rpb[i], skiprows=1)
+            if (ext == 'csv'):
+                db_rpb = pd.read_csv(ff_rpb[i])
+                d_rpb = db_rpb.values
+            if (ext == 'shp'):
+                db_rpb = read_shapefile(ff_rpb[i])
+                d_rpb = db_rpb.values
+
+            n_rpb.append(len(d_rpb))
+            print('Found ', n_rpb[i], 'Repeat bathymetry data in dataset #', i + 1)
+            X_rpb[n_index:n_rpb[i] + n_index] = d_rpb[:, 0]
+            Y_rpb[n_index:n_rpb[i] + n_index] = d_rpb[:, 1]
+            data_rpb[n_index:n_rpb[i] + n_index] = d_rpb[:, 2]
+            err_rpb[n_index:n_rpb[i] + n_index] = d_rpb[:, 3]
+            n_index += n_rpb[i]
+        X_rpb = np.array(X_rpb)
+        Y_rpb = np.array(Y_rpb)
+        data_rpb = np.array(data_rpb)
+        err_rpb = np.array(err_rpb)
+
 def source_info(argument):
     mogi = dict(index = 0,
                 name  = 'Mogi Point Source (Mogi, 1958)',
@@ -555,6 +623,26 @@ def read_VSM_settings(VSM_settings_name):
             if(ff_srn!='None'): print('Strain data file', ff_srn)
         except:
             pass
+
+        line = reader.readline()
+        try:
+            ff_sfp = line.split()[0]
+            if(ff_sfp!='None'): print('Seafloor pressure file', ff_sfp)
+        except:
+            pass
+
+        line = reader.readline()
+        try:
+            ff_rpb[0] = line.split()[0]
+            if(ff_rpb!='None'): print('Repeat bathymetry file #',1,ff_rpb[0])
+        except:
+            pass
+        for i in range(1,10):
+            try:
+                ff_rpb.append(line.split()[i])
+                print('Repeat bathymetry file #',i+1,ff_sar[i])
+            except:
+                break
             
         line = reader.readline()
         s = line.split()[0]
@@ -568,7 +656,11 @@ def read_VSM_settings(VSM_settings_name):
         t = line.split()[0]
         line = reader.readline()
         r = line.split()[0]
-        read_weights(s,g,l,e,t,r)
+        line = reader.readline()
+        f = line.split()[0]
+        line = reader.readline()
+        p = line.split()[0]
+        read_weights(s,g,l,e,t,r,f,p)
  
         line = reader.readline()
         m = line.split()[0]
@@ -662,7 +754,7 @@ def iVSM():
 # NEIGHBOURHOOD ALGORITHM or BAYESIAN INFERENCE
 
 def synth(params):
-    global synth_sar, synth_gps, synth_lev, synth_edm, synth_tlt, synth_srn
+    global synth_sar, synth_gps, synth_lev, synth_edm, synth_tlt, synth_srn, synth_sfp, synth_rpb
         
     if ff_sar[0]!='None': synth_sar = np.zeros( len(X_sar)   )
     if ff_gps   !='None': synth_gps = np.zeros((len(X_gps),3))
@@ -670,7 +762,9 @@ def synth(params):
     if ff_edm   !='None': synth_edm = np.zeros( len(X_edm)   )
     if ff_tlt   !='None': synth_tlt = np.zeros((len(X_tlt),2))
     if ff_srn   !='None': synth_srn = np.zeros( len(X_srn)   )
-    
+    if ff_sfp   !='None': synth_sfp = np.zeros( len(X_sfp)   )
+    if ff_rpb   !='None': synth_rpb = np.zeros( len(X_rpb)   )
+
     nd = 0
     ndtrue = 0
     for i_sorg in range(len(mysources)):
@@ -695,7 +789,7 @@ def synth(params):
         if(type_sorg == 5):
             unknowns['opt'] = okada_mode[i_sorg]
 
-# separate calls for each dataset type        
+# separate calls for each dataset type
         
         if ff_sar[0]!='None':
             if(type_sorg == 0):
@@ -853,7 +947,39 @@ def synth(params):
                 uxmY,uymY,uzmY = forward.okada(  X_srn, Y_srn-delta, **unknowns)
 
             synth_srn += fact*(uxpX - uxmX + uypY - uymY)*1.e6/delta/2.
-                
+
+        if ff_sfp != 'None':
+            if (type_sorg == 0):
+                ux, uy, uz = forward.mogi(X_sfp, Y_sfp, **unknowns)
+            if (type_sorg == 1):
+                ux, uy, uz = forward.mctigue(X_sfp, Y_sfp, **unknowns)
+            if (type_sorg == 2):
+                ux, uy, uz = forward.fialko(X_sfp, Y_sfp, **unknowns)
+            if (type_sorg == 3):
+                ux, uy, uz = forward.yang(X_sfp, Y_sfp, **unknowns)
+            if (type_sorg == 4):
+                ux, uy, uz = forward.davis(X_sfp, Y_sfp, **unknowns)
+            if (type_sorg == 5):
+                ux, uy, uz = forward.okada(X_sfp, Y_sfp, **unknowns)
+
+            synth_sfp[:, 0] += uz
+
+        if ff_rpb != 'None':
+            if (type_sorg == 0):
+                ux, uy, uz = forward.mogi(X_rpb, Y_rpb, **unknowns)
+            if (type_sorg == 1):
+                ux, uy, uz = forward.mctigue(X_rpb, Y_rpb, **unknowns)
+            if (type_sorg == 2):
+                ux, uy, uz = forward.fialko(X_rpb, Y_rpb, **unknowns)
+            if (type_sorg == 3):
+                ux, uy, uz = forward.yang(X_rpb, Y_rpb, **unknowns)
+            if (type_sorg == 4):
+                ux, uy, uz = forward.davis(X_rpb, Y_rpb, **unknowns)
+            if (type_sorg == 5):
+                ux, uy, uz = forward.okada(X_rpb, Y_rpb, **unknowns)
+
+            synth_rpb[:, 0] += uz
+
     return
 
 # -----------------------------------------------------------------------------
@@ -873,6 +999,8 @@ def na_obj(params):
     wchi2_edm = 0.
     wchi2_tlt = 0.
     wchi2_srn = 0.
+    wchi2_sfp = 0
+    wchi2_rpb = 0
     
     synth(params)
              
@@ -894,8 +1022,14 @@ def na_obj(params):
     if ff_srn!='None':   
         chi2_srn = chi_square(data_srn,synth_srn,err_srn)
         wchi2_srn = w_srn*chi2_srn
+    if ff_sfp!='None':
+        chi2_sfp = chi_square(data_sfp,synth_sfp,err_sfp)
+        wchi2_sfp = w_sfp*chi2_sfp
+    if ff_rpb!='None':
+        chi2_rpb = chi_square(data_rpb,synth_rpb,err_rpb)
+        wchi2_rpb = w_rpb*chi2_rpb
         
-    func = wchi2_sar + wchi2_gps + wchi2_lev + wchi2_edm + wchi2_tlt + wchi2_srn
+    func = wchi2_sar + wchi2_gps + wchi2_lev + wchi2_edm + wchi2_tlt + wchi2_srn + wchi2_sfp + wchi2_rpb
     
     return func
 
@@ -965,6 +1099,8 @@ def log_likelitot(params):
     log_lik_edm = 0.
     log_lik_tlt = 0.
     log_lik_srn = 0.
+    log_lik_sfp = 0.
+    log_lik_rpb = 0.
     
     synth(params)
     
@@ -978,11 +1114,16 @@ def log_likelitot(params):
         log_lik_edm = log_likelihood(data_edm,synth_edm,err_edm)
     if ff_tlt!='None':   
         log_lik_tlt = log_likelihood(data_tlt,synth_tlt,err_tlt)
-    if ff_srn!='None':   
+    if ff_srn!='None':
         log_lik_srn = log_likelihood(data_srn,synth_srn,err_srn)
+    if ff_sfp!='None':
+        log_lik_sfp = log_likelihood(data_sfp,synth_sfp,err_sfp)
+    if ff_rpb!='None':
+        log_lik_rpb = log_likelihood(data_rpb,synth_rpb,err_rpb)
         
     log_lik_tot = log_lik_sar*w_sar + log_lik_gps*w_gps + log_lik_lev*w_lev + \
-                  log_lik_edm*w_edm + log_lik_tlt*w_tlt + log_lik_srn*w_srn
+                  log_lik_edm*w_edm + log_lik_tlt*w_tlt + log_lik_srn*w_srn + \
+                  log_lik_sfp*w_sfp + log_lik_rpb*w_rpb
                   
     return log_lik_tot
 
@@ -1205,8 +1346,24 @@ def write_results(samples, truths, sigma=None, extra=None):
         hd='coo_X,coo_Y,synth_srn,data_srn,err_srn'
         form  = 2*'%.2f,'+3*'%.5e,'
         form= form[:-1]
-        np.savetxt(filename_temp,all_srn.transpose(),delimiter=',',header=hd,comments='',fmt=form)   
-        
+        np.savetxt(filename_temp,all_srn.transpose(),delimiter=',',header=hd,comments='',fmt=form)
+
+    if ff_sfp != 'None':
+        filename_temp = os.path.join(fold_inout,'VSM_synth_sfp.csv')
+        all_sfp = np.asarray([X_sfp,Y_sfp,synth_sfp[:,0],data_sfp[:,0],err_sfp[:,0]])
+        hd='coo_X,coo_Y,synth_sfp,data_sfp,err_sfp'
+        form  = 2*'%.2f,'+3*'%.5e,'
+        form= form[:-1]
+        np.savetxt(filename_temp,all_sfp.transpose(),delimiter=',',header=hd,comments='',fmt=form)
+
+    if ff_rpb != 'None':
+        filename_temp = os.path.join(fold_inout,'VSM_synth_rpb.csv')
+        all_rpb = np.asarray([X_rpb,Y_rpb,synth_rpb[:,0],data_rpb[:,0],err_rpb[:,0]])
+        hd='coo_X,coo_Y,synth_rpb,data_rpb,err_rpb'
+        form  = 2*'%.2f,'+3*'%.5e,'
+        form= form[:-1]
+        np.savetxt(filename_temp,all_rpb.transpose(),delimiter=',',header=hd,comments='',fmt=form)
+
 ### Save all info from the current run of VSM
     filename_temp = os.path.join(fold_inout,'VSM.log')
     stars = '*******************************************************************************\n'
@@ -1289,6 +1446,20 @@ def write_results(samples, truths, sigma=None, extra=None):
         f.write('SRN\t'+str(ll)+'\t%8.4f\t%8.3f\t%8.3f \n' % (w_srn,chi2_null, chi2_srn))
     else:
         f.write('SRN\t - \t -\t    -\t\t  -\n')
+    if ff_sfp != 'None':
+        ll = len(X_sfp)
+        chi2_null = chi_square(data_sfp,0,err_sfp)
+        chi2_sfp  = chi_square(data_sfp,synth_sfp,err_sfp)
+        f.write('SFP\t'+str(ll)+'\t%8.4f\t%8.3f\t%8.3f \n' % (w_sfp,chi2_null, chi2_sfp))
+    else:
+        f.write('SFP\t - \t -\t    -\t\t  -\n')
+    if ff_rpb != 'None':
+        ll = len(X_rpb)
+        chi2_null = chi_square(data_rpb,0,err_rpb)
+        chi2_rpb  = chi_square(data_rpb,synth_rpb,err_rpb)
+        f.write('RPB\t'+str(ll)+'\t%8.4f\t%8.3f\t%8.3f \n' % (w_rpb,chi2_null, chi2_rpb))
+    else:
+        f.write('SRN\t - \t -\t    -\t\t  -\n')
         
     f.write('\nTotal misfit of the preferred model '+'%8.3f' % (chi2_final))
     ##    
@@ -1357,8 +1528,9 @@ def write_results(samples, truths, sigma=None, extra=None):
     except:
         f.write(ff_sar[0]+'\n')
     
-    f.write(ff_gps+'\n'+ff_lev+'\n'+ff_edm+'\n'+ff_tlt+'\n'+ff_srn+'\n')
-    f.write(str(w_sar)+'\n'+str(w_gps)+'\n'+str(w_lev)+'\n'+str(w_edm)+'\n'+str(w_tlt)+'\n'+str(w_srn)+'\n')
+    f.write(ff_gps+'\n'+ff_lev+'\n'+ff_edm+'\n'+ff_tlt+'\n'+ff_srn+'\n'+ff_sfp+'\n'+ff_rpb+'\n')
+    f.write(str(w_sar)+'\n'+str(w_gps)+'\n'+str(w_lev)+'\n'+str(w_edm)+'\n'+str(w_tlt)+'\n'+str(w_srn)+'\n'+\
+            str(w_sfp)+'\n'+str(w_rpb)+'\n')
     f.write(('%.2e\n' % mu)+str(ni)+'\n')
     f.write(str(len(mysources))+'\n')
     kk = 0
