@@ -20,6 +20,8 @@ Input data supported
 - electronic distance measurements
 - tilt
 - strain
+- seafloor pressure data (converted to vertical displacements)
+- repeat bathymetry data
 
 Sampling algorithms
 - global optimization algorithm based on the Voronoi cells (Neighbourhood Algorithm - NA)
