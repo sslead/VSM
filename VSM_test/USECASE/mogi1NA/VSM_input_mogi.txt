@@ -1,12 +1,16 @@
-../VSM_test/USECASE/mogi1NA
-../VSM_test/USECASE/DATA/obs_sar1.txt ../VSM_test/USECASE/DATA/obs_sar2.txt
+../VSM_test/USECASE/mogi1NA/
+None
 ../VSM_test/USECASE/DATA/GPS_data.txt
 None
 None
 None
 None
+None
+None
+0.0
 1.0
-1.0
+0.0
+0.0
 0.0
 0.0
 0.0
@@ -19,7 +23,7 @@ None
 4515000	4525000
 2000	6000
 1000000.0	20000000.0
-0
-1000 300
-10
+1
+1000
+300
 1000

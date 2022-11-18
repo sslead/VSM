@@ -112,7 +112,7 @@ def final_check():
     fguiin = open(ff_in, "w")
 
     fguiin.write(fold_inout+'\n')
-     
+
     try:
         if len(ff_sar)<2:
             fguiin.write(ff_sar[0]+'\n')
@@ -123,7 +123,7 @@ def final_check():
             fguiin.write(ff_sar_temp+'\n')
     except:
         fguiin.write(ff_sar[0]+'\n')
-        
+
     fguiin.write(ff_gps+'\n'+ff_lev+'\n'+ff_edm+'\n'+ff_tlt+'\n'+ff_srn+'\n')
     fguiin.write(str(w_sar)+'\n'+str(w_gps)+'\n'+str(w_lev)+'\n'+str(w_edm)+'\n'+str(w_tlt)+'\n'+str(w_srn)+'\n')
     fguiin.write(('%.2e\n' % mu)+str(ni)+'\n')
@@ -134,10 +134,10 @@ def final_check():
             fguiin.write(str(mysources[i_sorg]['index'])+'\n')
         else:
             fguiin.write(str(mysources[i_sorg]['index'])+' '+okada_mode[i_sorg]+'\n')
-           
+
         for k in range(mysources[i_sorg]['param_n']):
             row = str(list(bounds[kk])[0])+'\t'+str(list(bounds[kk])[1])+'\t'+mysources[i_sorg]['param_l'][k]+'\n'
-            kk +=1            
+            kk +=1
             fguiin.write(row)
     fguiin.write(str(ch_opt)+'\n')
     fguiin.write(str(samp1)+' '+str(samp2)+'\n')
@@ -150,7 +150,7 @@ def final_check():
 def read_sar_file():
     for i in range(10):
         f = filedialog.askopenfilename(title = "Select InSAR File",filetypes = (("ascii files","*.txt"),("csv files","*.csv"),("shapefiles","*.shp")))
-        if(f!=''): 
+        if(f!=''):
             if(i == 0):
                 ff_sar[0] = f
             else:
@@ -293,7 +293,7 @@ def read_weights(s,g,l,e,t,r,f,p):
     if(ff_sfp != 'None' and w_sfp == 0.): w_sfp = 1.
     if(ff_rpb != 'None' and w_rpb == 0.): w_rpb = 1.
     
-    w_tot = w_sar + w_gps + w_lev + w_edm + w_tlt + w_srn + w_sfg + w_rpb
+    w_tot = w_sar + w_gps + w_lev + w_edm + w_tlt + w_srn + w_sfp + w_rpb
     w_sar /= w_tot
     w_gps /= w_tot
     w_lev /= w_tot
@@ -477,7 +477,8 @@ def read_data():
         err_sfp = d_sfp[:, 3:4]
         print('Found ', len(X_sfp), 'Seafloor Pressure Data Points')
 
-    if (ff_rpb[0] != 'None'):
+    #if (ff_rpb[0] != 'None'):
+    if (ff_rpb != 'None'):
         global X_rpb, Y_rpb, data_rpb, err_rpb, n_rpb
 
         n_rpb = []
@@ -563,7 +564,7 @@ def source_info(argument):
     
 def read_VSM_settings(VSM_settings_name):
     global fold_inout
-    global ff_gps, ff_lev, ff_edm,ff_tlt,ff_srn
+    global ff_gps, ff_lev, ff_edm,ff_tlt,ff_srn, ff_sfp, ff_rpb
     
     print('\n\n*******************************************************************************')
     print('\n                   VSM exectution begins')
@@ -633,7 +634,7 @@ def read_VSM_settings(VSM_settings_name):
 
         line = reader.readline()
         try:
-            ff_rpb[0] = line.split()[0]
+            ff_rpb = line.split()[0]
             if(ff_rpb!='None'): print('Repeat bathymetry file #',1,ff_rpb[0])
         except:
             pass
@@ -962,7 +963,7 @@ def synth(params):
             if (type_sorg == 5):
                 ux, uy, uz = forward.okada(X_sfp, Y_sfp, **unknowns)
 
-            synth_sfp[:, 0] += uz
+            synth_sfp += uz
 
         if ff_rpb != 'None':
             if (type_sorg == 0):
@@ -978,7 +979,7 @@ def synth(params):
             if (type_sorg == 5):
                 ux, uy, uz = forward.okada(X_rpb, Y_rpb, **unknowns)
 
-            synth_rpb[:, 0] += uz
+            synth_rpb += uz
 
     return
 
@@ -1350,7 +1351,7 @@ def write_results(samples, truths, sigma=None, extra=None):
 
     if ff_sfp != 'None':
         filename_temp = os.path.join(fold_inout,'VSM_synth_sfp.csv')
-        all_sfp = np.asarray([X_sfp,Y_sfp,synth_sfp[:,0],data_sfp[:,0],err_sfp[:,0]])
+        all_sfp = np.asarray([X_sfp,Y_sfp,synth_sfp,data_sfp.flatten(),err_sfp.flatten()])
         hd='coo_X,coo_Y,synth_sfp,data_sfp,err_sfp'
         form  = 2*'%.2f,'+3*'%.5e,'
         form= form[:-1]
@@ -1358,7 +1359,7 @@ def write_results(samples, truths, sigma=None, extra=None):
 
     if ff_rpb != 'None':
         filename_temp = os.path.join(fold_inout,'VSM_synth_rpb.csv')
-        all_rpb = np.asarray([X_rpb,Y_rpb,synth_rpb[:,0],data_rpb[:,0],err_rpb[:,0]])
+        all_rpb = np.asarray([X_rpb,Y_rpb,synth_rpb,data_rpb,err_rpb])
         hd='coo_X,coo_Y,synth_rpb,data_rpb,err_rpb'
         form  = 2*'%.2f,'+3*'%.5e,'
         form= form[:-1]
