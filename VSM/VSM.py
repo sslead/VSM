@@ -473,8 +473,8 @@ def read_data():
         global X_sfp, Y_sfp, data_sfp, err_sfp
         X_sfp = d_sfp[:, 0]
         Y_sfp = d_sfp[:, 1]
-        data_sfp = d_sfp[:, 2:3] # seafloor pressure is only z component
-        err_sfp = d_sfp[:, 3:4]
+        data_sfp = d_sfp[:,2] # seafloor pressure is only z component
+        err_sfp = d_sfp[:,3]
         print('Found ', len(X_sfp), 'Seafloor Pressure Data Points')
 
     #if (ff_rpb[0] != 'None'):
